@@ -1,0 +1,45 @@
+{
+  "runId": "prod-us-east-2026-07-05T12-00-00Z",
+  "cluster": "prod-us-east",
+  "environment": "PROD",
+  "status": "ERROR",
+  "startedAt": "2026-07-05T12:00:00Z",
+  "finishedAt": "2026-07-05T12:09:27Z",
+  "parallelBackups": 30,
+  "counts": { "pending": 0, "running": 0, "success": 2, "errored": 1, "total": 3 },
+  "collections": [
+    {
+      "alias": "search-index",
+      "collection": "search_index_v22",
+      "shards": [
+        {
+          "shardName": "shard1",
+          "coreName": "search_index_v22_shard1_replica_n1",
+          "leaderUrl": "http://solr-1:8983/solr/search_index_v22_shard1_replica_n1/",
+          "status": "SUCCESS",
+          "startedAt": "2026-07-05T12:00:05Z",
+          "finishedAt": "2026-07-05T12:06:31Z",
+          "error": null
+        },
+        {
+          "shardName": "shard2",
+          "coreName": "search_index_v22_shard2_replica_n1",
+          "leaderUrl": "http://solr-2:8983/solr/search_index_v22_shard2_replica_n1/",
+          "status": "ERROR",
+          "startedAt": "2026-07-05T12:00:06Z",
+          "finishedAt": "2026-07-05T12:02:50Z",
+          "error": "IOException: no space left on backup mount /mnt/backups/backups/solr9/"
+        },
+        {
+          "shardName": "shard3",
+          "coreName": "search_index_v22_shard3_replica_n1",
+          "leaderUrl": "http://solr-3:8983/solr/search_index_v22_shard3_replica_n1/",
+          "status": "SUCCESS",
+          "startedAt": "2026-07-05T12:00:07Z",
+          "finishedAt": "2026-07-05T12:09:27Z",
+          "error": null
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,75 @@
+{
+  "runId": "staging-2026-07-06T05-00-00Z",
+  "cluster": "staging",
+  "environment": "STAGING",
+  "status": "ERROR",
+  "startedAt": "2026-07-06T05:00:00Z",
+  "finishedAt": "2026-07-06T05:31:12Z",
+  "parallelBackups": 10,
+  "counts": { "pending": 0, "running": 0, "success": 1, "errored": 1, "total": 2 },
+  "collections": [
+    {
+      "alias": "content-cms",
+      "collection": "content_cms_v3",
+      "shards": [
+        {
+          "shardName": "shard1",
+          "coreName": "content_cms_v3_shard1_replica_n1",
+          "leaderUrl": "http://solr-1:8983/solr/content_cms_v3_shard1_replica_n1/",
+          "status": "SUCCESS",
+          "startedAt": "2026-07-06T05:00:05Z",
+          "finishedAt": "2026-07-06T05:06:12Z",
+          "error": null,
+          "attempts": [
+            {
+              "attempt": 1,
+              "status": "ERROR",
+              "startedAt": "2026-07-06T05:00:05Z",
+              "finishedAt": "2026-07-06T05:02:40Z",
+              "error": "Backup status was unsuccessful"
+            },
+            {
+              "attempt": 2,
+              "status": "SUCCESS",
+              "startedAt": "2026-07-06T05:02:55Z",
+              "finishedAt": "2026-07-06T05:06:12Z",
+              "error": null
+            }
+          ]
+        },
+        {
+          "shardName": "shard2",
+          "coreName": "content_cms_v3_shard2_replica_n1",
+          "leaderUrl": "http://solr-2:8983/solr/content_cms_v3_shard2_replica_n1/",
+          "status": "ERROR",
+          "startedAt": "2026-07-06T05:01:12Z",
+          "finishedAt": "2026-07-06T05:31:12Z",
+          "error": "Core stopped updating on backup at 2026-07-06T05:31:12Z",
+          "attempts": [
+            {
+              "attempt": 1,
+              "status": "ERROR",
+              "startedAt": "2026-07-06T05:01:12Z",
+              "finishedAt": "2026-07-06T05:11:12Z",
+              "error": "Core stopped updating on backup at 2026-07-06T05:11:12Z"
+            },
+            {
+              "attempt": 2,
+              "status": "ERROR",
+              "startedAt": "2026-07-06T05:11:27Z",
+              "finishedAt": "2026-07-06T05:21:20Z",
+              "error": "Core stopped updating on backup at 2026-07-06T05:21:20Z"
+            },
+            {
+              "attempt": 3,
+              "status": "ERROR",
+              "startedAt": "2026-07-06T05:21:35Z",
+              "finishedAt": "2026-07-06T05:31:12Z",
+              "error": "Core stopped updating on backup at 2026-07-06T05:31:12Z"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

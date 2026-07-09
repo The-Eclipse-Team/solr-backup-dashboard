@@ -1,0 +1,69 @@
+{
+  "runId": "prod-eu-west-2026-07-06T07-00-00Z",
+  "cluster": "prod-eu-west",
+  "environment": "PROD",
+  "status": "SUCCESS",
+  "startedAt": "2026-07-06T07:00:00Z",
+  "finishedAt": "2026-07-06T07:18:42Z",
+  "parallelBackups": 30,
+  "counts": { "pending": 0, "running": 0, "success": 5, "errored": 0, "total": 5 },
+  "collections": [
+    {
+      "alias": "product-catalog",
+      "collection": "product_catalog_v14",
+      "shards": [
+        {
+          "shardName": "shard1",
+          "coreName": "product_catalog_v14_shard1_replica_n1",
+          "leaderUrl": "http://solr-1:8983/solr/product_catalog_v14_shard1_replica_n1/",
+          "status": "SUCCESS",
+          "startedAt": "2026-07-06T07:00:05Z",
+          "finishedAt": "2026-07-06T07:05:11Z",
+          "error": null
+        },
+        {
+          "shardName": "shard2",
+          "coreName": "product_catalog_v14_shard2_replica_n1",
+          "leaderUrl": "http://solr-2:8983/solr/product_catalog_v14_shard2_replica_n1/",
+          "status": "SUCCESS",
+          "startedAt": "2026-07-06T07:00:06Z",
+          "finishedAt": "2026-07-06T07:06:48Z",
+          "error": null
+        },
+        {
+          "shardName": "shard3",
+          "coreName": "product_catalog_v14_shard3_replica_n1",
+          "leaderUrl": "http://solr-3:8983/solr/product_catalog_v14_shard3_replica_n1/",
+          "status": "SUCCESS",
+          "startedAt": "2026-07-06T07:00:07Z",
+          "finishedAt": "2026-07-06T07:04:59Z",
+          "error": null
+        }
+      ]
+    },
+    {
+      "alias": "order-history",
+      "collection": "order_history_v9",
+      "shards": [
+        {
+          "shardName": "shard1",
+          "coreName": "order_history_v9_shard1_replica_n1",
+          "leaderUrl": "http://solr-1:8983/solr/order_history_v9_shard1_replica_n1/",
+          "status": "SUCCESS",
+          "startedAt": "2026-07-06T07:15:00Z",
+          "finishedAt": "2026-07-06T07:18:20Z",
+          "error": null
+        },
+        {
+          "shardName": "shard2",
+          "coreName": "order_history_v9_shard2_replica_n1",
+          "leaderUrl": "http://solr-2:8983/solr/order_history_v9_shard2_replica_n1/",
+          "status": "SUCCESS",
+          "startedAt": "2026-07-06T07:15:01Z",
+          "finishedAt": "2026-07-06T07:18:42Z",
+          "error": null
+        }
+      ]
+    }
+  ]
+}

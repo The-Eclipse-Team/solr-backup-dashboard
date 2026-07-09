@@ -1,0 +1,26 @@
+# Local end-to-end wiring: the backup CLI and the dashboard share one report volume.
+# The dashboard only reads it; the backupper writes report files into it.
+services:
+  dashboard:
+    build: .
+    ports:
+      - '8080:8080'
+    environment:
+      PORT: '8080'
+      REPORT_DIR: /reports
+    volumes:
+      - reports:/reports:ro
+
+  # Example of the backup CLI writing into the same shared volume. It needs its own image
+  # (add a Dockerfile to the solr-backupper project); shown here to illustrate the shared mount.
+  # solr-backupper:
+  #   image: solr-backupper:latest
+  #   environment:
+  #     SPRING_PROFILES_ACTIVE: prod
+  #     # override solr.backup.report-output-directory to the shared mount:
+  #     SOLR_BACKUP_REPORT-OUTPUT-DIRECTORY: /reports
+  #   volumes:
+  #     - reports:/reports
+
+volumes:
+  reports:
