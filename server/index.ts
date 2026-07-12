@@ -117,8 +117,9 @@ app.get('/api/reports/:runId', async (req, res) => {
 });
 
 // Serve the built SPA and fall back to index.html for client-side navigation.
+// Express 5 (path-to-regexp 8) requires a named wildcard — bare '*' throws at startup.
 app.use(express.static(DIST_DIR));
-app.get('*', (_req, res) => res.sendFile(path.join(DIST_DIR, 'index.html')));
+app.get('/*splat', (_req, res) => res.sendFile(path.join(DIST_DIR, 'index.html')));
 
 app.listen(PORT, () => {
   // eslint-disable-next-line no-console
