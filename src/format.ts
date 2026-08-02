@@ -1,4 +1,4 @@
-import type { CollectionReport, RunStatus, ShardReport, ShardStatus } from './types';
+import type { CollectionReport, RunStatus, ShardAttempt, ShardReport, ShardStatus } from './types';
 
 export interface StatusMeta {
   label: string;
@@ -41,6 +41,17 @@ export function computeCollectionStatus(shards: ShardReport[]): ShardStatus {
 
 export function collectionKey(col: CollectionReport): string {
   return `${col.alias} ${col.collection}`;
+}
+
+/**
+ * An attempt's file-copy progress, or null when the core has not reported a file list yet (a backup
+ * still waiting for its index commit, or a report written before the backupper tracked progress).
+ */
+export function fileProgress(attempt: ShardAttempt | undefined): { label: string; pct: number } | null {
+  if (!attempt || attempt.fileCount == null || attempt.finishedFileCount == null) return null;
+  const total = attempt.fileCount;
+  const done = attempt.finishedFileCount;
+  return { label: `${done}/${total}`, pct: total > 0 ? Math.min(100, (done / total) * 100) : 0 };
 }
 
 function pad(n: number): string {

@@ -52,27 +52,6 @@ function isRunReport(value: unknown): value is RunReport {
   );
 }
 
-async function readAllReports(): Promise<RunReport[]> {
-  let files: string[];
-  try {
-    files = await readdir(REPORT_DIR);
-  } catch {
-    return [];
-  }
-
-  const reports: RunReport[] = [];
-  for (const file of files) {
-    if (!file.startsWith(REPORT_PREFIX) || !file.endsWith(REPORT_SUFFIX)) continue;
-    try {
-      const parsed: unknown = JSON.parse(await readFile(path.join(REPORT_DIR, file), 'utf8'));
-      if (isRunReport(parsed)) reports.push(parsed);
-    } catch {
-      // A report being rewritten (or a stray file) — skip it this poll; the next one will pick it up.
-    }
-  }
-  return reports;
-}
-
 function toSummary(report: RunReport) {
   const counts = report.counts ?? ({} as Counts);
   return {
@@ -90,12 +69,67 @@ function toSummary(report: RunReport) {
   };
 }
 
+type Summary = ReturnType<typeof toSummary>;
+
+/**
+ * Summaries of runs that have already finished. A report stops changing the moment its run ends — the
+ * backupper marks the run finished, writes one final report and exits — so a non-ACTIVE summary is
+ * final and never has to be read again. Only the ACTIVE run (normally at most one) is re-read on each
+ * poll, which matters because the report directory is typically a shared mount where every file costs
+ * a round trip. Keyed by filename, which embeds the run's start timestamp and so is never reused.
+ *
+ * Trade-off: hand-editing an already-finished report needs a server restart to show up. Revalidating
+ * with a stat per file would put back the very round trips this exists to avoid.
+ */
+const finishedSummaries = new Map<string, Summary>();
+
+async function readSummary(file: string): Promise<Summary | null> {
+  const cached = finishedSummaries.get(file);
+  if (cached) return cached;
+
+  try {
+    const parsed: unknown = JSON.parse(await readFile(path.join(REPORT_DIR, file), 'utf8'));
+    if (!isRunReport(parsed)) return null;
+    const summary = toSummary(parsed);
+    if (summary.status !== 'ACTIVE') finishedSummaries.set(file, summary);
+    return summary;
+  } catch {
+    // A report being rewritten (or a stray file) — skip it this poll; the next one will pick it up.
+    return null;
+  }
+}
+
+async function readAllSummaries(): Promise<Summary[]> {
+  let files: string[];
+  try {
+    files = await readdir(REPORT_DIR);
+  } catch {
+    return [];
+  }
+  const candidates = files.filter((file) => file.startsWith(REPORT_PREFIX) && file.endsWith(REPORT_SUFFIX));
+
+  // The response is built from this listing, so a deleted report drops out on its own; forget its
+  // cached summary too, otherwise the map grows for the lifetime of the process.
+  const present = new Set(candidates);
+  for (const cached of finishedSummaries.keys()) {
+    if (!present.has(cached)) finishedSummaries.delete(cached);
+  }
+
+  // Read concurrently: on a shared mount the round trips dominate, and awaiting them one after another
+  // made the runs list take seconds to first paint.
+  // ponytail: unbounded fan-out, fine for the tens/hundreds of reports a directory holds. Cap the
+  // concurrency if it ever reaches thousands — at which point paginating by filename (which already
+  // carries the run's timestamp) beats reading the directory at all.
+  const summaries = await Promise.all(candidates.map(readSummary));
+  return summaries.filter((summary): summary is Summary => summary !== null);
+}
+
 const app = express();
 
 app.get('/api/reports', async (_req, res) => {
-  const reports = await readAllReports();
-  reports.sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime());
-  res.json(reports.map(toSummary));
+  const summaries = await readAllSummaries();
+  summaries.sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime());
+  res.json(summaries);
 });
 
 app.get('/api/reports/:runId', async (req, res) => {

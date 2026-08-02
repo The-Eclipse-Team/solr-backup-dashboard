@@ -17,6 +17,10 @@ export interface ShardAttempt {
   startedAt: string | null;
   finishedAt: string | null;
   error: string | null;
+  // File-copy progress Solr reports while the backup runs. Null until the core resolves its file list,
+  // and absent entirely on reports written before the backupper tracked progress.
+  fileCount?: number | null;
+  finishedFileCount?: number | null;
 }
 
 export interface ShardReport {

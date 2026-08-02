@@ -425,6 +425,8 @@ body {
 
 /* Retry badge + per-attempt detail */
 .retry-badge {
+  /* Last item in the status cell — keep it off the next column. */
+  margin-right: 10px;
   border: 1px solid rgba(245, 158, 11, 0.35);
   background: rgba(245, 158, 11, 0.12);
   color: #fbbf58;

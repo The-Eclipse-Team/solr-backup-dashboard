@@ -8,10 +8,12 @@ import { Pagination, paginate, pageCountFor, DEFAULT_PAGE_SIZE } from '../compon
 import type { PageSize } from '../components/Pagination';
 import { usePolling, useNow } from '../api';
 import type { CollectionReport, RunReport, ShardReport } from '../types';
+import type { ShardAttempt } from '../types';
 import {
   shardMeta,
   computeCollectionStatus,
   collectionKey,
+  fileProgress,
   formatClock,
   formatClockTime,
   formatDuration,
@@ -25,11 +27,32 @@ const STATUS_FILTERS = [
   { value: 'ERROR', label: 'Error' },
 ];
 
-const SHARD_COLS = '1.6fr 1fr 1fr 1fr 2.4fr';
-const ATTEMPT_COLS = '0.7fr 1fr 1fr 1fr 2.6fr';
+// The status cell also holds the retry badge, and the wide core name in column one otherwise squeezes
+// it below its content width — hence the floor rather than a plain fr.
+const SHARD_COLS = '1.6fr minmax(215px, 1.2fr) 0.8fr 0.8fr 1.3fr 1.6fr';
+const ATTEMPT_COLS = '0.7fr 1fr 0.8fr 0.8fr 1.3fr 2.1fr';
+
+// Solr's file-copy progress for one attempt: a bar plus "copied/total". Backups that have not yet
+// resolved their index commit (and older reports) have no counts to show.
+function FilesCell({ attempt }: { attempt: ShardAttempt | undefined }) {
+  const progress = fileProgress(attempt);
+  if (!progress) return <span className="mono">—</span>;
+
+  return (
+    <div className="progress-wrap" title={`${progress.label} files copied`}>
+      <div className="progress-track">
+        <div
+          className="progress-bar"
+          style={{ width: `${progress.pct}%`, background: shardMeta(attempt!.status).dot }}
+        />
+      </div>
+      <span className="mono">{progress.label}</span>
+    </div>
+  );
+}
 
 // One shard row. When the shard was retried (more than one attempt), a badge expands an inline table
-// showing each attempt's status, start time, duration and error.
+// showing each attempt's status, start time, duration, file progress and error.
 function ShardRow({ sh, now }: { sh: ShardReport; now: number }) {
   const attempts = sh.attempts ?? [];
   const retried = attempts.length > 1;
@@ -54,6 +77,9 @@ function ShardRow({ sh, now }: { sh: ShardReport; now: number }) {
         </div>
         <span className="mono">{formatClockTime(sh.startedAt)}</span>
         <span className="mono bright">{formatDuration(sh.startedAt, sh.finishedAt, now)}</span>
+        {/* The attempts table only expands for a retried shard, so the current attempt's progress
+            lives on the shard row too — that is where a first-attempt backup is watched live. */}
+        <FilesCell attempt={attempts[attempts.length - 1]} />
         <span className="error-cell" title={sh.error ?? ''}>
           {sh.error ?? '—'}
         </span>
@@ -66,6 +92,7 @@ function ShardRow({ sh, now }: { sh: ShardReport; now: number }) {
             <span>Status</span>
             <span>Started</span>
             <span>Duration</span>
+            <span>Files</span>
             <span>Error</span>
           </div>
           {attempts.map((a) => {
@@ -79,6 +106,7 @@ function ShardRow({ sh, now }: { sh: ShardReport; now: number }) {
                 </div>
                 <span className="mono">{formatClockTime(a.startedAt)}</span>
                 <span className="mono bright">{formatDuration(a.startedAt, a.finishedAt, now)}</span>
+                <FilesCell attempt={a} />
                 <span className="error-cell" title={a.error ?? ''}>
                   {a.error ?? '—'}
                 </span>
@@ -145,6 +173,7 @@ function CollectionSection({
             <span>Status</span>
             <span>Started</span>
             <span>Duration</span>
+            <span>Files</span>
             <span>Error</span>
           </div>
           {visible.map((sh) => (

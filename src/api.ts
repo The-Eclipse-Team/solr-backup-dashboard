@@ -22,7 +22,12 @@ export interface PollResult<T> {
   loading: boolean;
 }
 
-/** Polls `url` every `intervalMs`, keeping the last successful payload visible across refreshes. */
+/**
+ * Polls `url` every `intervalMs`, keeping the last successful payload visible across refreshes. The
+ * next poll is scheduled after the previous one settles rather than on a fixed interval: a request
+ * slower than the interval would otherwise stack another one on top of it, and each of those makes the
+ * server scan the whole report directory again.
+ */
 export function usePolling<T>(url: string, intervalMs: number): PollResult<T> {
   const [data, setData] = useState<T | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -30,6 +35,7 @@ export function usePolling<T>(url: string, intervalMs: number): PollResult<T> {
 
   useEffect(() => {
     let cancelled = false;
+    let timer: ReturnType<typeof setTimeout>;
     setLoading(true);
 
     const tick = async () => {
@@ -42,15 +48,17 @@ export function usePolling<T>(url: string, intervalMs: number): PollResult<T> {
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : String(e));
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+          timer = setTimeout(tick, intervalMs);
+        }
       }
     };
 
     tick();
-    const id = setInterval(tick, intervalMs);
     return () => {
       cancelled = true;
-      clearInterval(id);
+      clearTimeout(timer);
     };
   }, [url, intervalMs]);
 
