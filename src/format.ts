@@ -54,6 +54,21 @@ export function fileProgress(attempt: ShardAttempt | undefined): { label: string
   return { label: `${done}/${total}`, pct: total > 0 ? Math.min(100, (done / total) * 100) : 0 };
 }
 
+/**
+ * An attempt's leader as a host label plus the core's replication status URL — the very URL the backupper
+ * polls (ShardBackupExecutor builds `{origin}/solr/{core}/replication?command=details`). Null when the
+ * attempt never resolved a leader, or when leaderUrl is unparseable — a bad report must not blank the view.
+ */
+export function coreDetails(attempt: ShardAttempt): { host: string; url: string } | null {
+  if (!attempt.leaderUrl || !attempt.coreName) return null;
+  try {
+    const { origin, hostname } = new URL(attempt.leaderUrl);
+    return { host: hostname, url: `${origin}/solr/${attempt.coreName}/replication?command=details` };
+  } catch {
+    return null;
+  }
+}
+
 function pad(n: number): string {
   return n < 10 ? `0${n}` : `${n}`;
 }

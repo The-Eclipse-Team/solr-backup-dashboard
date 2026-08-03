@@ -13,6 +13,7 @@ import {
   shardMeta,
   computeCollectionStatus,
   collectionKey,
+  coreDetails,
   fileProgress,
   formatClock,
   formatClockTime,
@@ -27,10 +28,11 @@ const STATUS_FILTERS = [
   { value: 'ERROR', label: 'Error' },
 ];
 
-// The status cell also holds the retry badge, and the wide core name in column one otherwise squeezes
-// it below its content width — hence the floor rather than a plain fr.
-const SHARD_COLS = '1.6fr minmax(215px, 1.2fr) 0.8fr 0.8fr 1.3fr 1.6fr';
-const ATTEMPT_COLS = '0.7fr 1fr 0.8fr 0.8fr 1.3fr 2.1fr';
+// The status cell also holds the attempts badge, which would otherwise be squeezed below its content
+// width — hence the floor rather than a plain fr. Column one is just the shard name now, so it is narrow.
+const SHARD_COLS = '0.9fr minmax(215px, 1.2fr) 0.8fr 0.8fr 1.3fr 1.6fr';
+// Attempts carry the core they ran against, which needs room — core names are long.
+const ATTEMPT_COLS = '0.5fr 1.7fr 1fr 0.8fr 0.8fr 1.3fr 1.6fr';
 
 // Solr's file-copy progress for one attempt: a bar plus "copied/total". Backups that have not yet
 // resolved their index commit (and older reports) have no counts to show.
@@ -51,11 +53,11 @@ function FilesCell({ attempt }: { attempt: ShardAttempt | undefined }) {
   );
 }
 
-// One shard row. When the shard was retried (more than one attempt), a badge expands an inline table
-// showing each attempt's status, start time, duration, file progress and error.
+// One shard row. A badge expands an inline table showing each attempt's core/host, status, start time,
+// duration, file progress and error. The shard name stays on the shard; the core belongs to the attempt,
+// since the backupper re-resolves the leader on every retry.
 function ShardRow({ sh, now }: { sh: ShardReport; now: number }) {
   const attempts = sh.attempts ?? [];
-  const retried = attempts.length > 1;
   const [open, setOpen] = useState(false);
   const meta = shardMeta(sh.status);
 
@@ -64,31 +66,38 @@ function ShardRow({ sh, now }: { sh: ShardReport; now: number }) {
       <div className="trow" style={{ gridTemplateColumns: SHARD_COLS }}>
         <div className="cell-stack">
           <span className="cell-title sans">{sh.shardName}</span>
-          <span className="cell-sub mono">{sh.coreName}</span>
+          {/* A shard that has not started (and any pre-attempts report) has no attempt to carry the core,
+              so fall back to the shard's own — otherwise the core would vanish entirely. */}
+          {attempts.length === 0 && (
+            <span className="cell-sub mono" title={sh.coreName}>
+              {sh.coreName}
+            </span>
+          )}
         </div>
         <div className="status-col">
           <Dot color={meta.dot} pulse={sh.status === 'RUNNING'} />
           <span className="status-label">{meta.label}</span>
-          {retried && (
+          {attempts.length > 0 && (
             <button type="button" className="retry-badge" onClick={() => setOpen((o) => !o)} title="Show every attempt">
-              ⟳ {attempts.length} attempts {open ? '▲' : '▼'}
+              ⟳ {attempts.length} {open ? '▲' : '▼'}
             </button>
           )}
         </div>
         <span className="mono">{formatClockTime(sh.startedAt)}</span>
         <span className="mono bright">{formatDuration(sh.startedAt, sh.finishedAt, now)}</span>
-        {/* The attempts table only expands for a retried shard, so the current attempt's progress
-            lives on the shard row too — that is where a first-attempt backup is watched live. */}
+        {/* The attempts table starts collapsed, so the current attempt's progress lives on the shard row
+            too — that is where a running backup is watched live. */}
         <FilesCell attempt={attempts[attempts.length - 1]} />
         <span className="error-cell" title={sh.error ?? ''}>
           {sh.error ?? '—'}
         </span>
       </div>
 
-      {retried && open && (
+      {attempts.length > 0 && open && (
         <div className="attempts">
           <div className="attempts-head" style={{ gridTemplateColumns: ATTEMPT_COLS }}>
             <span>Attempt</span>
+            <span>Core / host</span>
             <span>Status</span>
             <span>Started</span>
             <span>Duration</span>
@@ -97,9 +106,24 @@ function ShardRow({ sh, now }: { sh: ShardReport; now: number }) {
           </div>
           {attempts.map((a) => {
             const am = shardMeta(a.status);
+            const leader = coreDetails(a);
             return (
               <div className="attempts-row" style={{ gridTemplateColumns: ATTEMPT_COLS }} key={a.attempt}>
                 <span className="mono">#{a.attempt}</span>
+                <div className="cell-stack">
+                  <span className="cell-title">{a.coreName ?? '—'}</span>
+                  {leader && (
+                    <a
+                      className="cell-sub mono host-link"
+                      href={leader.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      title={`${a.leaderUrl} — open replication status`}
+                    >
+                      {leader.host}
+                    </a>
+                  )}
+                </div>
                 <div className="status-col">
                   <Dot color={am.dot} pulse={a.status === 'RUNNING'} size={6} />
                   <span className="status-label">{am.label}</span>
@@ -169,7 +193,7 @@ function CollectionSection({
       {isExpanded && (
         <div>
           <div className="thead" style={{ gridTemplateColumns: SHARD_COLS, borderTop: '1px solid var(--border-soft)' }}>
-            <span>Shard / core</span>
+            <span>Shard</span>
             <span>Status</span>
             <span>Started</span>
             <span>Duration</span>
@@ -244,7 +268,9 @@ export function RunDetailView({ runId, onBack }: { runId: string; onBack: () => 
           col.alias.toLowerCase().includes(q) ||
           col.collection.toLowerCase().includes(q) ||
           sh.shardName.toLowerCase().includes(q) ||
-          sh.coreName.toLowerCase().includes(q);
+          sh.coreName.toLowerCase().includes(q) ||
+          // A retry can land on a different core, so match every core the shard actually used.
+          (sh.attempts ?? []).some((a) => a.coreName?.toLowerCase().includes(q));
         return matchStatus && matchSearch;
       });
       return { col, shards };

@@ -17,6 +17,11 @@ export interface ShardAttempt {
   startedAt: string | null;
   finishedAt: string | null;
   error: string | null;
+  // The leader this attempt ran against. The shard-level pair only names the most recent one, so a
+  // failover between attempts is visible here alone. Null when the attempt failed before resolving a
+  // leader, and absent on reports written before the backupper tracked the leader per attempt.
+  coreName?: string | null;
+  leaderUrl?: string | null;
   // File-copy progress Solr reports while the backup runs. Null until the core resolves its file list,
   // and absent entirely on reports written before the backupper tracked progress.
   fileCount?: number | null;
