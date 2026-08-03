@@ -19,16 +19,64 @@
           "status": "SUCCESS",
           "startedAt": "2026-07-05T12:00:05Z",
           "finishedAt": "2026-07-05T12:06:31Z",
-          "error": null
+          "error": null,
+          "attempts": [
+            {
+              "attempt": 1,
+              "status": "SUCCESS",
+              "startedAt": "2026-07-05T12:00:05Z",
+              "finishedAt": "2026-07-05T12:06:31Z",
+              "error": null,
+              "coreName": "search_index_v22_shard1_replica_n1",
+              "leaderUrl": "http://solr-1:8983/solr/search_index_v22_shard1_replica_n1/",
+              "fileCount": 412,
+              "finishedFileCount": 412
+            }
+          ]
         },
         {
           "shardName": "shard2",
-          "coreName": "search_index_v22_shard2_replica_n1",
-          "leaderUrl": "http://solr-2:8983/solr/search_index_v22_shard2_replica_n1/",
+          "coreName": "search_index_v22_shard2_replica_n3",
+          "leaderUrl": "http://solr-5:8983/solr/search_index_v22_shard2_replica_n3/",
           "status": "ERROR",
           "startedAt": "2026-07-05T12:00:06Z",
           "finishedAt": "2026-07-05T12:02:50Z",
-          "error": "IOException: no space left on backup mount /mnt/backups/backups/solr9/"
+          "error": "IOException: no space left on backup mount /mnt/backups/backups/solr9/",
+          "attempts": [
+            {
+              "attempt": 1,
+              "status": "ERROR",
+              "startedAt": "2026-07-05T12:00:06Z",
+              "finishedAt": "2026-07-05T12:01:12Z",
+              "error": "Core stopped updating on backup at 2026-07-05T12:01:12Z",
+              "coreName": "search_index_v22_shard2_replica_n1",
+              "leaderUrl": "http://solr-2:8983/solr/search_index_v22_shard2_replica_n1/",
+              "fileCount": 508,
+              "finishedFileCount": 91
+            },
+            {
+              "attempt": 2,
+              "status": "ERROR",
+              "startedAt": "2026-07-05T12:01:32Z",
+              "finishedAt": "2026-07-05T12:01:32Z",
+              "error": "Shard has no elected leader",
+              "coreName": null,
+              "leaderUrl": null,
+              "fileCount": null,
+              "finishedFileCount": null
+            },
+            {
+              "attempt": 3,
+              "status": "ERROR",
+              "startedAt": "2026-07-05T12:01:52Z",
+              "finishedAt": "2026-07-05T12:02:50Z",
+              "error": "IOException: no space left on backup mount /mnt/backups/backups/solr9/",
+              "coreName": "search_index_v22_shard2_replica_n3",
+              "leaderUrl": "http://solr-5:8983/solr/search_index_v22_shard2_replica_n3/",
+              "fileCount": 508,
+              "finishedFileCount": 143
+            }
+          ]
         },
         {
           "shardName": "shard3",
@@ -37,7 +85,20 @@
           "status": "SUCCESS",
           "startedAt": "2026-07-05T12:00:07Z",
           "finishedAt": "2026-07-05T12:09:27Z",
-          "error": null
+          "error": null,
+          "attempts": [
+            {
+              "attempt": 1,
+              "status": "SUCCESS",
+              "startedAt": "2026-07-05T12:00:07Z",
+              "finishedAt": "2026-07-05T12:09:27Z",
+              "error": null,
+              "coreName": "search_index_v22_shard3_replica_n1",
+              "leaderUrl": "http://solr-3:8983/solr/search_index_v22_shard3_replica_n1/",
+              "fileCount": 1204,
+              "finishedFileCount": 1204
+            }
+          ]
         }
       ]
     }

@@ -245,6 +245,10 @@ body {
 .cell-title {
   font: 600 12.5px var(--mono);
   color: var(--fg-2);
+  /* Core names are long enough to blow out their grid column. */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .cell-title.sans {
   font-family: var(--sans);
@@ -258,6 +262,15 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+/* The attempt's host, linking to that core's replication status page. */
+.host-link {
+  color: var(--muted-4);
+  text-decoration: none;
+}
+.host-link:hover {
+  color: var(--fg-3);
+  text-decoration: underline;
 }
 .status-col {
   display: flex;
