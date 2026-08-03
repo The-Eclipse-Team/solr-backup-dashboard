@@ -58,6 +58,34 @@ export interface RunReport {
   collections: CollectionReport[];
 }
 
+/**
+ * Shapes returned by GET /api/health (server/health.ts) — derived from every report in the directory
+ * rather than one run. The server reports when each shard last succeeded and how old that may get; the
+ * healthy/stale/missing call is made here so the label always agrees with the ticking age beside it.
+ */
+export type HealthStatus = 'healthy' | 'stale' | 'missing';
+
+export interface ShardHealth {
+  shardName: string;
+  coreName: string | null;
+  lastSuccessAt: string | null;
+}
+
+export interface CollectionHealth {
+  cluster: string;
+  alias: string;
+  collection: string;
+  shards: ShardHealth[];
+}
+
+export interface HealthReport {
+  staleAfterHours: number;
+  /** Start of the oldest report still on disk — health can see no further back than this. */
+  historyFrom: string | null;
+  runCount: number;
+  collections: CollectionHealth[];
+}
+
 /** Shape returned by GET /api/reports (server-side summary of each RunReport). */
 export interface RunSummary {
   runId: string;

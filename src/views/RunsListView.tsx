@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import type { ReactNode } from 'react';
 import { Header } from '../components/Header';
 import { StatGrid } from '../components/StatCard';
 import type { StatDef } from '../components/StatCard';
@@ -18,7 +19,7 @@ const RUN_FILTERS = [
 
 const LIST_COLS = '1.4fr 1.1fr 1fr 1fr 1fr .9fr 1.6fr';
 
-export function RunsListView({ onOpen }: { onOpen: (runId: string) => void }) {
+export function RunsListView({ onOpen, tabs }: { onOpen: (runId: string) => void; tabs?: ReactNode }) {
   const { data, error, loading } = usePolling<RunSummary[]>('/api/reports', 3000);
   const now = useNow();
   const [search, setSearch] = useState('');
@@ -63,6 +64,8 @@ export function RunsListView({ onOpen }: { onOpen: (runId: string) => void }) {
       <Header badge={envBadge}>
         <span className="mono">{formatClock(now)}</span>
       </Header>
+
+      {tabs}
 
       <StatGrid stats={stats} columns={4} />
 
