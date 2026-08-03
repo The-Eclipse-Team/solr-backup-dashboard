@@ -184,6 +184,36 @@ body {
   color: #7dabf8;
 }
 
+/* Top-level tabs. Chip-shaped, one size up — they switch the whole view, not a filter within it. */
+.tab-row {
+  display: flex;
+  gap: 6px;
+  padding: 12px 24px 0;
+}
+.tab {
+  border: none;
+  border-radius: 7px;
+  padding: 8px 14px;
+  font: 600 12px var(--sans);
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--muted);
+}
+.tab:hover:not(.active) {
+  color: var(--fg-3);
+}
+.tab.active {
+  background: #f2f3f5;
+  color: #12141a;
+}
+
+/* One-line caveat under the health list: it can only see as far back as the reports still on disk. */
+.history-note {
+  padding: 14px 16px 0;
+  font: 11.5px var(--sans);
+  color: var(--muted-4);
+}
+
 /* Dots + pills */
 .dot {
   width: 7px;

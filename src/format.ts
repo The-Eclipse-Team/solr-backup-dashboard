@@ -1,4 +1,4 @@
-import type { CollectionReport, RunStatus, ShardAttempt, ShardReport, ShardStatus } from './types';
+import type { CollectionReport, HealthStatus, RunStatus, ShardAttempt, ShardReport, ShardStatus } from './types';
 
 export interface StatusMeta {
   label: string;
@@ -29,6 +29,66 @@ export function shardMeta(status: ShardStatus): StatusMeta {
 
 export function runMeta(status: RunStatus): StatusMeta {
   return RUN_META[status.toLowerCase()] ?? RUN_META.active;
+}
+
+// Collection-health palette. Stale gets its own amber: a backup that exists but has aged out is a
+// different problem from one that was never taken, and flattening both to red hides which is which.
+const HEALTH_META: Record<HealthStatus, StatusMeta> = {
+  healthy: { label: 'Healthy', bg: 'rgba(34,197,94,.14)', fg: '#6ee7a0', dot: '#22c55e' },
+  stale: { label: 'Stale', bg: 'rgba(245,158,11,.14)', fg: '#fbbf58', dot: '#f59e0b' },
+  missing: { label: 'Missing', bg: 'rgba(239,68,68,.14)', fg: '#fb9d9d', dot: '#ef4444' },
+};
+
+const INCOMPLETE_META: StatusMeta = { label: 'Incomplete', bg: 'rgba(239,68,68,.14)', fg: '#fb9d9d', dot: '#ef4444' };
+
+export function healthMeta(health: HealthStatus): StatusMeta {
+  return HEALTH_META[health];
+}
+
+/** A collection is Healthy only when every one of its shards is; anything else is Incomplete. */
+export function collectionHealthMeta(shards: HealthStatus[]): StatusMeta {
+  return shards.every((health) => health === 'healthy') ? HEALTH_META.healthy : INCOMPLETE_META;
+}
+
+/**
+ * How a shard's last successful backup reads right now. `staleAfterHours` comes from the server (the
+ * dashboard's STALE_AFTER_HOURS), so the threshold has one definition and the UI can re-evaluate it on
+ * every tick without another request.
+ */
+export function shardHealth(lastSuccessAt: string | null, staleAfterHours: number, now: number): HealthStatus {
+  if (!lastSuccessAt) return 'missing';
+  return now - new Date(lastSuccessAt).getTime() > staleAfterHours * 3600_000 ? 'stale' : 'healthy';
+}
+
+/** The threshold as prose for the stale note — "7 days" reads better than "168h" where it divides. */
+export function formatThreshold(staleAfterHours: number): string {
+  if (staleAfterHours % 24 === 0) {
+    const days = staleAfterHours / 24;
+    return days === 1 ? '1 day' : `${days} days`;
+  }
+  return `${staleAfterHours}h`;
+}
+
+export function healthNote(health: HealthStatus, staleAfterHours: number): string {
+  if (health === 'missing') return 'No successful backup in this history — needs a manual backup';
+  if (health === 'stale') return `Last backup over ${formatThreshold(staleAfterHours)} ago`;
+  return '—';
+}
+
+/**
+ * Coarse "how long ago", for ages measured in days. Deliberately not formatDuration: that renders
+ * h:mm:ss, which degrades to 192:14:03 once a backup is a week old.
+ */
+export function formatAge(iso: string | null, now: number): string {
+  if (!iso) return '—';
+  const seconds = Math.max(0, Math.floor((now - new Date(iso).getTime()) / 1000));
+  const days = Math.floor(seconds / 86400);
+  const hours = Math.floor((seconds % 86400) / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  if (days > 0) return `${days}d ${hours}h ago`;
+  if (hours > 0) return `${hours}h ${minutes}m ago`;
+  if (minutes > 0) return `${minutes}m ago`;
+  return 'just now';
 }
 
 /** Roll a collection's shards up to a single status for the collection header chip. */

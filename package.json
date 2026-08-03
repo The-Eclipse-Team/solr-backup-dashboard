@@ -9,6 +9,7 @@
     "server": "tsx watch server/index.ts",
     "build": "vite build",
     "start": "tsx server/index.ts",
+    "test": "tsx --test server/*.test.ts src/*.test.ts",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit"
   },

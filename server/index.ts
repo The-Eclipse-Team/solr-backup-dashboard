@@ -2,6 +2,8 @@ import express from 'express';
 import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { extractHealth, mergeHealth } from './health';
+import type { HealthEntry, RunReport } from './health';
 
 /**
  * Thin backend for the standalone dashboard. It reads the shared report directory that the
@@ -13,31 +15,16 @@ const REPORT_DIR = process.env.REPORT_DIR || path.resolve(process.cwd(), 'fixtur
 const PORT = Number(process.env.PORT || 8080);
 const DIST_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../dist');
 
+// How old a shard's last successful backup may get before /api/health's consumers call it stale. A
+// deployment backing up more often than weekly will want a shorter one.
+const STALE_AFTER_HOURS = Number(process.env.STALE_AFTER_HOURS || 24 * 7);
+
 // Report filenames are backup-report-{runId}.json; runIds are safe filename tokens.
 const RUN_ID_RE = /^[A-Za-z0-9._-]+$/;
 const REPORT_PREFIX = 'backup-report-';
 const REPORT_SUFFIX = '.json';
 
-type Counts = {
-  pending: number;
-  running: number;
-  success: number;
-  timedOut: number;
-  errored: number;
-  total: number;
-};
-
-type RunReport = {
-  runId: string;
-  cluster: string;
-  environment: string;
-  status: string;
-  startedAt: string;
-  finishedAt: string | null;
-  parallelBackups: number;
-  counts: Counts;
-  collections: Array<{ alias: string; collection: string; shards: unknown[] }>;
-};
+type Counts = RunReport['counts'];
 
 // Guards against files that aren't new-format RunReports — stray files, a report caught mid-rewrite,
 // or legacy pre-RunReport summaries (which lack runId/counts/collections) left in the same directory.
@@ -71,9 +58,12 @@ function toSummary(report: RunReport) {
 
 type Summary = ReturnType<typeof toSummary>;
 
+/** Everything both endpoints need from one report, so it is read and parsed once however many ask. */
+type Entry = { summary: Summary; health: HealthEntry };
+
 /**
- * Summaries of runs that have already finished. A report stops changing the moment its run ends — the
- * backupper marks the run finished, writes one final report and exits — so a non-ACTIVE summary is
+ * Entries for runs that have already finished. A report stops changing the moment its run ends — the
+ * backupper marks the run finished, writes one final report and exits — so a non-ACTIVE entry is
  * final and never has to be read again. Only the ACTIVE run (normally at most one) is re-read on each
  * poll, which matters because the report directory is typically a shared mount where every file costs
  * a round trip. Keyed by filename, which embeds the run's start timestamp and so is never reused.
@@ -81,25 +71,25 @@ type Summary = ReturnType<typeof toSummary>;
  * Trade-off: hand-editing an already-finished report needs a server restart to show up. Revalidating
  * with a stat per file would put back the very round trips this exists to avoid.
  */
-const finishedSummaries = new Map<string, Summary>();
+const finishedEntries = new Map<string, Entry>();
 
-async function readSummary(file: string): Promise<Summary | null> {
-  const cached = finishedSummaries.get(file);
+async function readEntry(file: string): Promise<Entry | null> {
+  const cached = finishedEntries.get(file);
   if (cached) return cached;
 
   try {
     const parsed: unknown = JSON.parse(await readFile(path.join(REPORT_DIR, file), 'utf8'));
     if (!isRunReport(parsed)) return null;
-    const summary = toSummary(parsed);
-    if (summary.status !== 'ACTIVE') finishedSummaries.set(file, summary);
-    return summary;
+    const entry: Entry = { summary: toSummary(parsed), health: extractHealth(parsed) };
+    if (entry.summary.status !== 'ACTIVE') finishedEntries.set(file, entry);
+    return entry;
   } catch {
     // A report being rewritten (or a stray file) — skip it this poll; the next one will pick it up.
     return null;
   }
 }
 
-async function readAllSummaries(): Promise<Summary[]> {
+async function readAllEntries(): Promise<Entry[]> {
   let files: string[];
   try {
     files = await readdir(REPORT_DIR);
@@ -109,10 +99,10 @@ async function readAllSummaries(): Promise<Summary[]> {
   const candidates = files.filter((file) => file.startsWith(REPORT_PREFIX) && file.endsWith(REPORT_SUFFIX));
 
   // The response is built from this listing, so a deleted report drops out on its own; forget its
-  // cached summary too, otherwise the map grows for the lifetime of the process.
+  // cached entry too, otherwise the map grows for the lifetime of the process.
   const present = new Set(candidates);
-  for (const cached of finishedSummaries.keys()) {
-    if (!present.has(cached)) finishedSummaries.delete(cached);
+  for (const cached of finishedEntries.keys()) {
+    if (!present.has(cached)) finishedEntries.delete(cached);
   }
 
   // Read concurrently: on a shared mount the round trips dominate, and awaiting them one after another
@@ -120,16 +110,23 @@ async function readAllSummaries(): Promise<Summary[]> {
   // ponytail: unbounded fan-out, fine for the tens/hundreds of reports a directory holds. Cap the
   // concurrency if it ever reaches thousands — at which point paginating by filename (which already
   // carries the run's timestamp) beats reading the directory at all.
-  const summaries = await Promise.all(candidates.map(readSummary));
-  return summaries.filter((summary): summary is Summary => summary !== null);
+  const entries = await Promise.all(candidates.map(readEntry));
+  return entries.filter((entry): entry is Entry => entry !== null);
 }
 
 const app = express();
 
 app.get('/api/reports', async (_req, res) => {
-  const summaries = await readAllSummaries();
+  const summaries = (await readAllEntries()).map((entry) => entry.summary);
   summaries.sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime());
   res.json(summaries);
+});
+
+// Health is derived from every report in the directory, not one run: which collections/shards exist now
+// (per the newest report that mentions them) and when each shard last backed up successfully.
+app.get('/api/health', async (_req, res) => {
+  const entries = (await readAllEntries()).map((entry) => entry.health);
+  res.json(mergeHealth(entries, STALE_AFTER_HOURS));
 });
 
 app.get('/api/reports/:runId', async (req, res) => {
