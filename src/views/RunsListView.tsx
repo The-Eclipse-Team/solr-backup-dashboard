@@ -19,7 +19,8 @@ const RUN_FILTERS = [
   { value: 'finished', label: 'Finished' },
 ];
 
-const LIST_COLS = '1.4fr 1fr 1.4fr 1fr 1fr 1fr .9fr 1.6fr';
+// Run ids are long (cluster + timestamp) and must not ellipsise; duration and status are short.
+const LIST_COLS = 'minmax(230px, 2fr) .8fr 1.3fr 1fr 1fr 1fr .7fr 1.3fr';
 
 const COLUMNS = [
   { key: 'run', label: 'Run' },
@@ -123,7 +124,7 @@ export function RunsListView({ onOpen, tabs }: { onOpen: (runId: string) => void
       </div>
 
       <div className="body">
-        <div className="thead" style={{ gridTemplateColumns: LIST_COLS }}>
+        <div className="thead" style={{ gridTemplateColumns: LIST_COLS, columnGap: 16 }}>
           {COLUMNS.map((c) => (
             <SortHeader key={c.key} label={c.label} sortKey={c.key} sort={sort} onSort={toggle} />
           ))}
@@ -141,7 +142,7 @@ export function RunsListView({ onOpen, tabs }: { onOpen: (runId: string) => void
               return (
                 <div
                   className="trow clickable"
-                  style={{ gridTemplateColumns: LIST_COLS }}
+                  style={{ gridTemplateColumns: LIST_COLS, columnGap: 16 }}
                   key={run.runId}
                   onClick={() => onOpen(run.runId)}
                 >
