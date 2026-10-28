@@ -19,11 +19,12 @@ const RUN_FILTERS = [
   { value: 'finished', label: 'Finished' },
 ];
 
-const LIST_COLS = '1.4fr 1.1fr 1fr 1fr 1fr .9fr 1.6fr';
+const LIST_COLS = '1.4fr 1fr 1.4fr 1fr 1fr 1fr .9fr 1.6fr';
 
 const COLUMNS = [
   { key: 'run', label: 'Run' },
   { key: 'cluster', label: 'Cluster' },
+  { key: 'collections', label: 'Collections' },
   { key: 'status', label: 'Status' },
   { key: 'started', label: 'Started' },
   { key: 'finished', label: 'Finished' },
@@ -59,12 +60,21 @@ export function RunsListView({ onOpen, tabs }: { onOpen: (runId: string) => void
     if (clusterFilter !== 'all' && r.cluster !== clusterFilter) return false;
     if (statusFilter === 'active' && r.status !== 'ACTIVE') return false;
     if (statusFilter === 'finished' && r.status === 'ACTIVE') return false;
-    if (q && !(r.runId.toLowerCase().includes(q) || r.cluster.toLowerCase().includes(q))) return false;
+    if (
+      q &&
+      !(
+        r.runId.toLowerCase().includes(q) ||
+        r.cluster.toLowerCase().includes(q) ||
+        r.collections.some((c) => c.toLowerCase().includes(q))
+      )
+    )
+      return false;
     return true;
   });
   const filtered = apply(matching, {
     run: (r) => r.runId,
     cluster: (r) => r.cluster,
+    collections: (r) => r.collections.join(', '),
     status: (r) => r.status,
     started: (r) => time(r.startedAt),
     finished: (r) => time(r.finishedAt),
@@ -94,7 +104,7 @@ export function RunsListView({ onOpen, tabs }: { onOpen: (runId: string) => void
       <div className="toolbar">
         <input
           className="search-input"
-          placeholder="Search run id, cluster…"
+          placeholder="Search run id, cluster, collection…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
@@ -140,6 +150,12 @@ export function RunsListView({ onOpen, tabs }: { onOpen: (runId: string) => void
                     <span className="cell-sub">{run.collectionCount} collections</span>
                   </div>
                   <span className="mono bright">{run.cluster}</span>
+                  {/* A run can cover many collections; the full list is in the tooltip when it overflows. */}
+                  <div className="cell-stack">
+                    <span className="cell-title" title={run.collections.join(', ')}>
+                      {run.collections.join(', ') || '—'}
+                    </span>
+                  </div>
                   <div className="status-col">
                     <Dot color={meta.dot} pulse={run.status === 'ACTIVE'} />
                     <StatusPill label={meta.label} bg={meta.bg} fg={meta.fg} />
