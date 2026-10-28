@@ -100,6 +100,8 @@ export interface RunSummary {
   parallelBackups: number;
   counts: Counts;
   collectionCount: number;
+  /** Names of the collections the run backed up, in report order. */
+  collections: string[];
   shardDone: number;
   shardTotal: number;
 }

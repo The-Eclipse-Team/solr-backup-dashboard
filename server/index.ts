@@ -57,6 +57,7 @@ function toSummary(report: RunReport) {
     parallelBackups: report.parallelBackups,
     counts,
     collectionCount: (report.collections ?? []).length,
+    collections: (report.collections ?? []).map((col) => col.collection),
     shardDone: counts.success ?? 0,
     shardTotal: counts.total ?? 0,
   };
