@@ -115,6 +115,15 @@ export function fileProgress(attempt: ShardAttempt | undefined): { label: string
 }
 
 /**
+ * Time since the attempt's file count last moved, ticking live — a running copy whose value keeps climbing
+ * is stalled. Only meaningful while the attempt runs, so finished attempts (and older reports) show "—".
+ */
+export function sinceLastFile(attempt: ShardAttempt | undefined, now: number): number | null {
+  if (attempt?.status !== 'RUNNING' || !attempt.lastProgressAt) return null;
+  return Math.max(0, now - new Date(attempt.lastProgressAt).getTime());
+}
+
+/**
  * An attempt's leader as a host label plus a link to the core's replication status — the very URL the
  * backupper polls (`{origin}/solr/{core}/replication?command=details`), fetched through /api/replication so
  * the server can attach SOLR_AUTHORIZATION. Null when the attempt never resolved a leader, or when leaderUrl
