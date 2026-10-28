@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
-import { Header } from '../components/Header';
+import { Clock, Header } from '../components/Header';
 import { StatGrid } from '../components/StatCard';
 import type { StatDef } from '../components/StatCard';
 import { Chip } from '../components/Chip';
@@ -246,7 +246,7 @@ export function CollectionHealthView({ tabs }: { tabs?: ReactNode }) {
   return (
     <>
       <Header>
-        <span className="mono">{formatClock(now)}</span>
+        <Clock>{formatClock(now)}</Clock>
       </Header>
 
       {tabs}

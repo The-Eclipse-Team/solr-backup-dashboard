@@ -4,6 +4,7 @@ import { RunDetailView } from './views/RunDetailView';
 import { CollectionHealthView } from './views/CollectionHealthView';
 import { Tabs } from './components/Tabs';
 import type { TabDef } from './components/Tabs';
+import { disco, useSequence } from './fun';
 
 const TABS: TabDef[] = [
   { value: 'runs', label: 'Backup Runs' },
@@ -23,6 +24,7 @@ function readRoute(): Route {
 
 export function App() {
   const [route, setRoute] = useState<Route>(() => readRoute());
+  useSequence(disco);
 
   useEffect(() => {
     const onHashChange = () => setRoute(readRoute());
