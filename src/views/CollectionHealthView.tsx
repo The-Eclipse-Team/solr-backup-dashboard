@@ -19,6 +19,8 @@ import {
   healthNote,
   shardHealth,
 } from '../format';
+import { SortHeader } from '../components/SortHeader';
+import { time, useSort } from '../sort';
 
 const HEALTH_FILTERS = [
   { value: 'all', label: 'All' },
@@ -27,6 +29,17 @@ const HEALTH_FILTERS = [
 ];
 
 const SHARD_COLS = '1.4fr 1fr 1fr .9fr 1.7fr';
+
+const SHARD_COLUMNS = [
+  { key: 'shard', label: 'Shard' },
+  { key: 'health', label: 'Health' },
+  { key: 'lastSuccess', label: 'Last success' },
+  { key: 'age', label: 'Time since' },
+  { key: 'note', label: 'Note' },
+];
+
+// Worst first when ascending — the order someone triaging wants.
+const HEALTH_RANK: Record<HealthStatus, number> = { missing: 0, stale: 1, healthy: 2 };
 
 // Health is a property of the whole report history, so it barely moves — no reason to poll it as hard
 // as the runs list (3s), which is watching a run happen.
@@ -60,13 +73,22 @@ function CollectionSection({
 }) {
   const [pageSize, setPageSize] = useState<PageSize>(DEFAULT_PAGE_SIZE);
   const [page, setPage] = useState(1);
+  const { sort, toggle, apply } = useSort();
 
   // Reset to the first page when the search/filter changes — but not on the ticking clock.
   useEffect(() => setPage(1), [filterKey]);
 
+  // Sorted before paginating, so the order spans every page rather than each page on its own.
+  const sorted = apply(shards, {
+    shard: (sh) => sh.shardName,
+    health: (sh) => HEALTH_RANK[sh.health],
+    lastSuccess: (sh) => time(sh.lastSuccessAt),
+    age: (sh) => (sh.lastSuccessAt ? now - time(sh.lastSuccessAt)! : null),
+    note: (sh) => healthNote(sh.health, staleAfterHours),
+  });
   const pageCount = pageCountFor(shards.length, pageSize);
   const currentPage = Math.min(Math.max(1, page), pageCount);
-  const visible = paginate(shards, currentPage, pageSize);
+  const visible = paginate(sorted, currentPage, pageSize);
 
   // The header summarises the whole collection, not the filtered subset — searching for one shard must
   // not make a collection with a missing one look healthy.
@@ -97,11 +119,9 @@ function CollectionSection({
       {isExpanded && (
         <div>
           <div className="thead" style={{ gridTemplateColumns: SHARD_COLS, borderTop: '1px solid var(--border-soft)' }}>
-            <span>Shard</span>
-            <span>Health</span>
-            <span>Last success</span>
-            <span>Time since</span>
-            <span>Note</span>
+            {SHARD_COLUMNS.map((c) => (
+              <SortHeader key={c.key} label={c.label} sortKey={c.key} sort={sort} onSort={toggle} />
+            ))}
           </div>
           {visible.map((sh) => {
             const meta = healthMeta(sh.health);

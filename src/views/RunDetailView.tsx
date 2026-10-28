@@ -19,6 +19,8 @@ import {
   formatClockTime,
   formatDuration,
 } from '../format';
+import { SortHeader } from '../components/SortHeader';
+import { durationMs, time, useSort } from '../sort';
 
 const STATUS_FILTERS = [
   { value: 'all', label: 'All' },
@@ -33,6 +35,30 @@ const STATUS_FILTERS = [
 const SHARD_COLS = '0.9fr minmax(215px, 1.2fr) 0.8fr 0.8fr 1.3fr 1.6fr';
 // Attempts carry the core they ran against, which needs room — core names are long.
 const ATTEMPT_COLS = '0.5fr 1.7fr 1fr 0.8fr 0.8fr 1.3fr 1.6fr';
+
+const SHARD_COLUMNS = [
+  { key: 'shard', label: 'Shard' },
+  { key: 'status', label: 'Status' },
+  { key: 'started', label: 'Started' },
+  { key: 'duration', label: 'Duration' },
+  { key: 'files', label: 'Files' },
+  { key: 'error', label: 'Error' },
+];
+
+const ATTEMPT_COLUMNS = [
+  { key: 'attempt', label: 'Attempt' },
+  { key: 'core', label: 'Core / host' },
+  { key: 'status', label: 'Status' },
+  { key: 'started', label: 'Started' },
+  { key: 'duration', label: 'Duration' },
+  { key: 'files', label: 'Files' },
+  { key: 'error', label: 'Error' },
+];
+
+// Lifecycle order, so sorting by status groups shards the way a run moves through them.
+const STATUS_RANK: Record<string, number> = { PENDING: 0, RUNNING: 1, SUCCESS: 2, ERROR: 3 };
+
+const filesPct = (attempt: ShardAttempt | undefined) => fileProgress(attempt)?.pct ?? null;
 
 // Solr's file-copy progress for one attempt: a bar plus "copied/total". Backups that have not yet
 // resolved their index commit (and older reports) have no counts to show.
@@ -60,6 +86,16 @@ function ShardRow({ sh, now }: { sh: ShardReport; now: number }) {
   const attempts = sh.attempts ?? [];
   const [open, setOpen] = useState(false);
   const meta = shardMeta(sh.status);
+  const { sort, toggle, apply } = useSort();
+  const sortedAttempts = apply(attempts, {
+    attempt: (a) => a.attempt,
+    core: (a) => a.coreName,
+    status: (a) => STATUS_RANK[a.status],
+    started: (a) => time(a.startedAt),
+    duration: (a) => durationMs(a.startedAt, a.finishedAt, now),
+    files: filesPct,
+    error: (a) => a.error,
+  });
 
   return (
     <>
@@ -96,15 +132,11 @@ function ShardRow({ sh, now }: { sh: ShardReport; now: number }) {
       {attempts.length > 0 && open && (
         <div className="attempts">
           <div className="attempts-head" style={{ gridTemplateColumns: ATTEMPT_COLS }}>
-            <span>Attempt</span>
-            <span>Core / host</span>
-            <span>Status</span>
-            <span>Started</span>
-            <span>Duration</span>
-            <span>Files</span>
-            <span>Error</span>
+            {ATTEMPT_COLUMNS.map((c) => (
+              <SortHeader key={c.key} label={c.label} sortKey={c.key} sort={sort} onSort={toggle} />
+            ))}
           </div>
-          {attempts.map((a) => {
+          {sortedAttempts.map((a) => {
             const am = shardMeta(a.status);
             const leader = coreDetails(a);
             return (
@@ -161,13 +193,23 @@ function CollectionSection({
 }) {
   const [pageSize, setPageSize] = useState<PageSize>(DEFAULT_PAGE_SIZE);
   const [page, setPage] = useState(1);
+  const { sort, toggle, apply } = useSort();
 
   // Reset to the first page when the search/status filter changes — but not on live data ticks.
   useEffect(() => setPage(1), [filterKey]);
 
+  // Sorted before paginating, so the order spans every page rather than each page on its own.
+  const sorted = apply(shards, {
+    shard: (sh) => sh.shardName,
+    status: (sh) => STATUS_RANK[sh.status],
+    started: (sh) => time(sh.startedAt),
+    duration: (sh) => durationMs(sh.startedAt, sh.finishedAt, now),
+    files: (sh) => filesPct(sh.attempts?.[sh.attempts.length - 1]),
+    error: (sh) => sh.error,
+  });
   const pageCount = pageCountFor(shards.length, pageSize);
   const currentPage = Math.min(Math.max(1, page), pageCount);
-  const visible = paginate(shards, currentPage, pageSize);
+  const visible = paginate(sorted, currentPage, pageSize);
 
   const overall = shardMeta(computeCollectionStatus(col.shards));
   const done = col.shards.filter((s) => s.status === 'SUCCESS').length;
@@ -193,12 +235,9 @@ function CollectionSection({
       {isExpanded && (
         <div>
           <div className="thead" style={{ gridTemplateColumns: SHARD_COLS, borderTop: '1px solid var(--border-soft)' }}>
-            <span>Shard</span>
-            <span>Status</span>
-            <span>Started</span>
-            <span>Duration</span>
-            <span>Files</span>
-            <span>Error</span>
+            {SHARD_COLUMNS.map((c) => (
+              <SortHeader key={c.key} label={c.label} sortKey={c.key} sort={sort} onSort={toggle} />
+            ))}
           </div>
           {visible.map((sh) => (
             <ShardRow sh={sh} now={now} key={sh.shardName} />

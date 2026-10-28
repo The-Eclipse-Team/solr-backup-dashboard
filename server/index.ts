@@ -19,6 +19,12 @@ const DIST_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../
 // deployment backing up more often than weekly will want a shorter one.
 const STALE_AFTER_HOURS = Number(process.env.STALE_AFTER_HOURS || 24 * 7);
 
+// Full Authorization header value (`Bearer <token>` or `Basic <base64>`) sent with the replication-status
+// requests /api/replication proxies to Solr. A browser link cannot carry a header, hence the proxy; and the
+// secret stays on the server instead of in a URL. Unset = requests go to Solr unauthenticated.
+const SOLR_AUTHORIZATION = process.env.SOLR_AUTHORIZATION;
+const CORE_RE = /^[A-Za-z0-9._-]+$/;
+
 // Report filenames are backup-report-{runId}.json; runIds are safe filename tokens.
 const RUN_ID_RE = /^[A-Za-z0-9._-]+$/;
 const REPORT_PREFIX = 'backup-report-';
@@ -59,7 +65,24 @@ function toSummary(report: RunReport) {
 type Summary = ReturnType<typeof toSummary>;
 
 /** Everything both endpoints need from one report, so it is read and parsed once however many ask. */
-type Entry = { summary: Summary; health: HealthEntry };
+type Entry = { summary: Summary; health: HealthEntry; leaderOrigins: string[] };
+
+/** Every Solr origin the report names as a leader — the only hosts /api/replication will forward to. */
+function leaderOrigins(report: RunReport): string[] {
+  type WithLeader = { leaderUrl?: string | null; attempts?: Array<{ leaderUrl?: string | null }> };
+  const urls = report.collections.flatMap((col) =>
+    (col.shards as WithLeader[]).flatMap((sh) => [sh.leaderUrl, ...(sh.attempts ?? []).map((a) => a.leaderUrl)]),
+  );
+  const origins = new Set<string>();
+  for (const url of urls) {
+    try {
+      if (url) origins.add(new URL(url).origin);
+    } catch {
+      // An unparseable leaderUrl just isn't proxyable.
+    }
+  }
+  return [...origins];
+}
 
 /**
  * Entries for runs that have already finished. A report stops changing the moment its run ends — the
@@ -80,7 +103,7 @@ async function readEntry(file: string): Promise<Entry | null> {
   try {
     const parsed: unknown = JSON.parse(await readFile(path.join(REPORT_DIR, file), 'utf8'));
     if (!isRunReport(parsed)) return null;
-    const entry: Entry = { summary: toSummary(parsed), health: extractHealth(parsed) };
+    const entry: Entry = { summary: toSummary(parsed), health: extractHealth(parsed), leaderOrigins: leaderOrigins(parsed) };
     if (entry.summary.status !== 'ACTIVE') finishedEntries.set(file, entry);
     return entry;
   } catch {
@@ -144,6 +167,39 @@ app.get('/api/reports/:runId', async (req, res) => {
     res.type('application/json').send(raw);
   } catch {
     res.status(404).json({ error: 'run not found' });
+  }
+});
+
+// A core's replication status (the URL the backupper polls), fetched server-side so SOLR_AUTHORIZATION can
+// ride along. Restricted to leader origins found in the reports: this endpoint attaches a credential, so it
+// must not forward to any host a caller names.
+app.get('/api/replication', async (req, res) => {
+  const { leader, core } = req.query;
+  if (typeof leader !== 'string' || typeof core !== 'string' || !CORE_RE.test(core)) {
+    res.status(400).json({ error: 'leader and core are required' });
+    return;
+  }
+  let origin: string;
+  try {
+    origin = new URL(leader).origin;
+  } catch {
+    res.status(400).json({ error: 'invalid leader' });
+    return;
+  }
+  const known = (await readAllEntries()).some((entry) => entry.leaderOrigins.includes(origin));
+  if (!known) {
+    res.status(403).json({ error: 'leader not found in any report' });
+    return;
+  }
+  try {
+    const upstream = await fetch(`${origin}/solr/${core}/replication?command=details&wt=json`, {
+      headers: SOLR_AUTHORIZATION ? { Authorization: SOLR_AUTHORIZATION } : {},
+      signal: AbortSignal.timeout(10_000),
+    });
+    res.status(upstream.status).type(upstream.headers.get('content-type') ?? 'application/json');
+    res.send(await upstream.text());
+  } catch (e) {
+    res.status(502).json({ error: `solr unreachable: ${e instanceof Error ? e.message : String(e)}` });
   }
 });
 

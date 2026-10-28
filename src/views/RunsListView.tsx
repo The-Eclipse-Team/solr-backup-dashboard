@@ -10,6 +10,8 @@ import type { PageSize } from '../components/Pagination';
 import { usePolling, useNow } from '../api';
 import type { RunSummary } from '../types';
 import { runMeta, formatClock, formatDateTime, formatDuration } from '../format';
+import { SortHeader } from '../components/SortHeader';
+import { durationMs, time, useSort } from '../sort';
 
 const RUN_FILTERS = [
   { value: 'all', label: 'All runs' },
@@ -19,6 +21,16 @@ const RUN_FILTERS = [
 
 const LIST_COLS = '1.4fr 1.1fr 1fr 1fr 1fr .9fr 1.6fr';
 
+const COLUMNS = [
+  { key: 'run', label: 'Run' },
+  { key: 'cluster', label: 'Cluster' },
+  { key: 'status', label: 'Status' },
+  { key: 'started', label: 'Started' },
+  { key: 'finished', label: 'Finished' },
+  { key: 'duration', label: 'Duration' },
+  { key: 'progress', label: 'Progress' },
+];
+
 export function RunsListView({ onOpen, tabs }: { onOpen: (runId: string) => void; tabs?: ReactNode }) {
   const { data, error, loading } = usePolling<RunSummary[]>('/api/reports', 3000);
   const now = useNow();
@@ -27,6 +39,7 @@ export function RunsListView({ onOpen, tabs }: { onOpen: (runId: string) => void
   const [clusterFilter, setClusterFilter] = useState('all');
   const [pageSize, setPageSize] = useState<PageSize>(DEFAULT_PAGE_SIZE);
   const [page, setPage] = useState(1);
+  const { sort, toggle, apply } = useSort();
 
   const runs = useMemo(() => data ?? [], [data]);
   const clusters = useMemo(() => Array.from(new Set(runs.map((r) => r.cluster))).sort(), [runs]);
@@ -42,12 +55,21 @@ export function RunsListView({ onOpen, tabs }: { onOpen: (runId: string) => void
   }, [runs]);
 
   const q = search.trim().toLowerCase();
-  const filtered = runs.filter((r) => {
+  const matching = runs.filter((r) => {
     if (clusterFilter !== 'all' && r.cluster !== clusterFilter) return false;
     if (statusFilter === 'active' && r.status !== 'ACTIVE') return false;
     if (statusFilter === 'finished' && r.status === 'ACTIVE') return false;
     if (q && !(r.runId.toLowerCase().includes(q) || r.cluster.toLowerCase().includes(q))) return false;
     return true;
+  });
+  const filtered = apply(matching, {
+    run: (r) => r.runId,
+    cluster: (r) => r.cluster,
+    status: (r) => r.status,
+    started: (r) => time(r.startedAt),
+    finished: (r) => time(r.finishedAt),
+    duration: (r) => durationMs(r.startedAt, r.finishedAt, now),
+    progress: (r) => (r.shardTotal ? r.shardDone / r.shardTotal : null),
   });
 
   // Jump back to the first page when the filters/search change the result set.
@@ -92,13 +114,9 @@ export function RunsListView({ onOpen, tabs }: { onOpen: (runId: string) => void
 
       <div className="body">
         <div className="thead" style={{ gridTemplateColumns: LIST_COLS }}>
-          <span>Run</span>
-          <span>Cluster</span>
-          <span>Status</span>
-          <span>Started</span>
-          <span>Finished</span>
-          <span>Duration</span>
-          <span>Progress</span>
+          {COLUMNS.map((c) => (
+            <SortHeader key={c.key} label={c.label} sortKey={c.key} sort={sort} onSort={toggle} />
+          ))}
         </div>
 
         {filtered.length === 0 ? (
