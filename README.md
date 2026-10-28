@@ -58,8 +58,11 @@ docker run -p 8080:8080 -v /path/to/reports:/reports:ro solr-backup-dashboard
 | ------------ | ------------ | --------------------------------------------------- |
 | `REPORT_DIR` | `./fixtures` | Directory of `backup-report-*.json` files to serve. |
 | `PORT`       | `8080`       | Port the backend listens on.                        |
+| `SOLR_AUTHORIZATION` | unset | `Authorization` header value (`Bearer <token>` or `Basic <base64>`) sent with the replication-status requests behind each attempt's host link. |
 
 ## API
 
 - `GET /api/reports` — summaries of every run in `REPORT_DIR`, newest first.
 - `GET /api/reports/:runId` — the full `RunReport` JSON for one run.
+- `GET /api/replication?leader=<leaderUrl>&core=<core>` — the core's `replication?command=details`,
+  fetched server-side with `SOLR_AUTHORIZATION`. Only forwards to leaders named in a report.

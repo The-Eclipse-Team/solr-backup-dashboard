@@ -504,3 +504,27 @@ body {
   padding: 7px 8px;
   border-top: 1px solid var(--border-soft);
 }
+
+/* Sortable column headers: the header text itself is the button, styled to look like the plain label. */
+.sort-head {
+  all: unset;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.sort-head:hover,
+.sort-head.active {
+  color: var(--fg-3);
+}
+.sort-head:focus-visible {
+  outline: 1px solid #3b82f6;
+  outline-offset: 2px;
+}
+.sort-arrow {
+  font-size: 8px;
+  opacity: 0.5;
+}
+.sort-head.active .sort-arrow {
+  opacity: 1;
+}
