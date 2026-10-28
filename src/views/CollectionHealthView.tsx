@@ -26,6 +26,8 @@ const HEALTH_FILTERS = [
   { value: 'all', label: 'All' },
   { value: 'healthy', label: 'Healthy' },
   { value: 'incomplete', label: 'Incomplete' },
+  // Incomplete collections, narrowed to just their stale/missing shards — the list to act on.
+  { value: 'unhealthy', label: 'Unhealthy shards' },
 ];
 
 const SHARD_COLS = '1.4fr 1fr 1fr .9fr 1.7fr';
@@ -216,6 +218,7 @@ export function CollectionHealthView({ tabs }: { tabs?: ReactNode }) {
     .map((col) => {
       const shards: ShardRow[] = col.shards
         .map((sh) => ({ ...sh, health: shardHealth(sh.lastSuccessAt, staleAfterHours, now) }))
+        .filter((sh) => filter !== 'unhealthy' || sh.health !== 'healthy')
         .filter(
           (sh) =>
             !q ||
@@ -229,7 +232,8 @@ export function CollectionHealthView({ tabs }: { tabs?: ReactNode }) {
       return { col, shards, allHealthy };
     })
     .filter((g) => g.shards.length > 0)
-    .filter((g) => filter === 'all' || (filter === 'healthy') === g.allHealthy);
+    // 'unhealthy' needs no collection test: a collection left with any shard after the filter above is incomplete.
+    .filter((g) => filter === 'all' || filter === 'unhealthy' || (filter === 'healthy') === g.allHealthy);
 
   const toggle = (key: string) =>
     setExpanded((prev) => {
