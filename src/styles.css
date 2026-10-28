@@ -528,3 +528,31 @@ body {
 .sort-head.active .sort-arrow {
   opacity: 1;
 }
+
+/* --- Surprises (src/fun.ts) --- */
+.clock,
+.header-title {
+  cursor: default;
+  user-select: none;
+}
+.shell.spin {
+  animation: shell-spin 1.2s cubic-bezier(0.65, 0, 0.35, 1);
+}
+@keyframes shell-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.shell.disco {
+  animation: shell-disco 0.8s linear infinite;
+}
+@keyframes shell-disco {
+  to {
+    filter: hue-rotate(360deg) saturate(2);
+  }
+}
+.header-title.sunny {
+  color: #fbbf58;
+  text-shadow: 0 0 12px rgba(251, 191, 88, 0.6);
+  transition: color 0.3s;
+}

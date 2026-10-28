@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Header } from '../components/Header';
+import { Clock, Header } from '../components/Header';
 import { StatGrid } from '../components/StatCard';
 import type { StatDef } from '../components/StatCard';
 import { Chip } from '../components/Chip';
@@ -352,7 +352,7 @@ export function RunDetailView({ runId, onBack }: { runId: string; onBack: () => 
           {isActive && (
             <span className="live-row">
               <Dot color="#3b82f6" pulse size={6} />
-              {formatClock(now)}
+              <Clock>{formatClock(now)}</Clock>
             </span>
           )}
         </div>

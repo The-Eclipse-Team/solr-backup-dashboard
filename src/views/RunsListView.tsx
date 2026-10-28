@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
-import { Header } from '../components/Header';
+import { Clock, Header } from '../components/Header';
 import { StatGrid } from '../components/StatCard';
 import type { StatDef } from '../components/StatCard';
 import { Chip } from '../components/Chip';
@@ -84,7 +84,7 @@ export function RunsListView({ onOpen, tabs }: { onOpen: (runId: string) => void
   return (
     <>
       <Header badge={envBadge}>
-        <span className="mono">{formatClock(now)}</span>
+        <Clock>{formatClock(now)}</Clock>
       </Header>
 
       {tabs}
@@ -121,7 +121,13 @@ export function RunsListView({ onOpen, tabs }: { onOpen: (runId: string) => void
 
         {filtered.length === 0 ? (
           <div className="empty-state">
-            {loading ? 'Loading…' : error ? `Failed to load runs: ${error}` : 'No runs match the current filter.'}
+            {loading
+              ? 'Loading…'
+              : error
+                ? `Failed to load runs: ${error}`
+                : q === 'sudo'
+                  ? 'solr is not in the sudoers file. This incident will be reported.'
+                  : 'No runs match the current filter.'}
           </div>
         ) : (
           <>
