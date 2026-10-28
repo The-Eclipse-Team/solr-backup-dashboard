@@ -556,3 +556,9 @@ body {
   text-shadow: 0 0 12px rgba(251, 191, 88, 0.6);
   transition: color 0.3s;
 }
+/* Both at once: one `animation` declaration would otherwise override the other. */
+.shell.spin.disco {
+  animation:
+    shell-spin 1.2s cubic-bezier(0.65, 0, 0.35, 1),
+    shell-disco 0.8s linear infinite;
+}
