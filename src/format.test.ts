@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { collectionHealthMeta, formatAge, formatThreshold, healthNote, shardHealth } from './format';
+import { collectionHealthMeta, formatAge, formatThreshold, healthNote, shardHealth, sinceLastFile } from './format';
+import type { ShardAttempt } from './types';
 
 // Run with: npm test  (node's own test runner through tsx — no framework)
 
@@ -39,4 +40,15 @@ test('the threshold reads as days where it divides into them', () => {
   assert.match(healthNote('stale', 168), /over 7 days ago/);
   assert.match(healthNote('missing', 168), /needs a manual backup/);
   assert.equal(healthNote('healthy', 168), '—');
+});
+
+test('sinceLastFile only measures running attempts that have reported progress', () => {
+  const now = Date.parse('2026-07-06T12:00:00Z');
+  const attempt = (status: ShardAttempt['status'], lastProgressAt?: string | null): ShardAttempt =>
+    ({ attempt: 1, status, startedAt: null, finishedAt: null, error: null, lastProgressAt });
+  assert.equal(sinceLastFile(attempt('RUNNING', '2026-07-06T11:59:30Z'), now), 30_000);
+  assert.equal(sinceLastFile(attempt('SUCCESS', '2026-07-06T11:59:30Z'), now), null);
+  assert.equal(sinceLastFile(attempt('RUNNING', null), now), null);
+  assert.equal(sinceLastFile(attempt('RUNNING'), now), null);
+  assert.equal(sinceLastFile(undefined, now), null);
 });

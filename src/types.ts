@@ -26,6 +26,9 @@ export interface ShardAttempt {
   // and absent entirely on reports written before the backupper tracked progress.
   fileCount?: number | null;
   finishedFileCount?: number | null;
+  // When those counts last changed, as seen by the backupper's polling (so only as precise as its poll
+  // interval). Absent on reports written before the backupper tracked it.
+  lastProgressAt?: string | null;
 }
 
 export interface ShardReport {

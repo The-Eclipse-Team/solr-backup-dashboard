@@ -18,6 +18,7 @@ import {
   formatClock,
   formatClockTime,
   formatDuration,
+  sinceLastFile,
 } from '../format';
 import { SortHeader } from '../components/SortHeader';
 import { durationMs, time, useSort } from '../sort';
@@ -32,9 +33,9 @@ const STATUS_FILTERS = [
 
 // The status cell also holds the attempts badge, which would otherwise be squeezed below its content
 // width — hence the floor rather than a plain fr. Column one is just the shard name now, so it is narrow.
-const SHARD_COLS = '0.9fr minmax(215px, 1.2fr) 0.8fr 0.8fr 1.3fr 1.6fr';
+const SHARD_COLS = '0.9fr minmax(215px, 1.2fr) 0.8fr 0.8fr 1.3fr 0.8fr 1.6fr';
 // Attempts carry the core they ran against, which needs room — core names are long.
-const ATTEMPT_COLS = '0.5fr 1.7fr 1fr 0.8fr 0.8fr 1.3fr 1.6fr';
+const ATTEMPT_COLS = '0.5fr 1.7fr 1fr 0.8fr 0.8fr 1.3fr 0.8fr 1.6fr';
 
 const SHARD_COLUMNS = [
   { key: 'shard', label: 'Shard' },
@@ -42,6 +43,7 @@ const SHARD_COLUMNS = [
   { key: 'started', label: 'Started' },
   { key: 'duration', label: 'Duration' },
   { key: 'files', label: 'Files' },
+  { key: 'lastFile', label: 'Last file' },
   { key: 'error', label: 'Error' },
 ];
 
@@ -52,6 +54,7 @@ const ATTEMPT_COLUMNS = [
   { key: 'started', label: 'Started' },
   { key: 'duration', label: 'Duration' },
   { key: 'files', label: 'Files' },
+  { key: 'lastFile', label: 'Last file' },
   { key: 'error', label: 'Error' },
 ];
 
@@ -79,6 +82,16 @@ function FilesCell({ attempt }: { attempt: ShardAttempt | undefined }) {
   );
 }
 
+// How long since the running attempt's file count last moved, as h:mm:ss like Duration.
+function LastFileCell({ attempt, now }: { attempt: ShardAttempt | undefined; now: number }) {
+  const ms = sinceLastFile(attempt, now);
+  return (
+    <span className="mono" title={attempt?.lastProgressAt ? `Count last changed ${formatClockTime(attempt.lastProgressAt)}` : ''}>
+      {ms == null ? '—' : formatDuration(attempt!.lastProgressAt!, null, now)}
+    </span>
+  );
+}
+
 // One shard row. A badge expands an inline table showing each attempt's core/host, status, start time,
 // duration, file progress and error. The shard name stays on the shard; the core belongs to the attempt,
 // since the backupper re-resolves the leader on every retry.
@@ -94,6 +107,7 @@ function ShardRow({ sh, now }: { sh: ShardReport; now: number }) {
     started: (a) => time(a.startedAt),
     duration: (a) => durationMs(a.startedAt, a.finishedAt, now),
     files: filesPct,
+    lastFile: (a) => sinceLastFile(a, now),
     error: (a) => a.error,
   });
 
@@ -124,6 +138,7 @@ function ShardRow({ sh, now }: { sh: ShardReport; now: number }) {
         {/* The attempts table starts collapsed, so the current attempt's progress lives on the shard row
             too — that is where a running backup is watched live. */}
         <FilesCell attempt={attempts[attempts.length - 1]} />
+        <LastFileCell attempt={attempts[attempts.length - 1]} now={now} />
         <span className="error-cell" title={sh.error ?? ''}>
           {sh.error ?? '—'}
         </span>
@@ -163,6 +178,7 @@ function ShardRow({ sh, now }: { sh: ShardReport; now: number }) {
                 <span className="mono">{formatClockTime(a.startedAt)}</span>
                 <span className="mono bright">{formatDuration(a.startedAt, a.finishedAt, now)}</span>
                 <FilesCell attempt={a} />
+                <LastFileCell attempt={a} now={now} />
                 <span className="error-cell" title={a.error ?? ''}>
                   {a.error ?? '—'}
                 </span>
@@ -205,6 +221,7 @@ function CollectionSection({
     started: (sh) => time(sh.startedAt),
     duration: (sh) => durationMs(sh.startedAt, sh.finishedAt, now),
     files: (sh) => filesPct(sh.attempts?.[sh.attempts.length - 1]),
+    lastFile: (sh) => sinceLastFile(sh.attempts?.[sh.attempts.length - 1], now),
     error: (sh) => sh.error,
   });
   const pageCount = pageCountFor(shards.length, pageSize);
